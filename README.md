@@ -3,7 +3,7 @@
 Supersheets is a lightweight, real-time collaborative spreadsheet built for the Trademarkia Frontend Engineering Assignment. It mimics the core functionality of Google Sheets, heavily prioritizing real-time sync correctness, strict typing, and scalable conflict handling.
 
 ## 🚀 Live Demo
-**[Insert Your Vercel Link Here]**
+**https://trademark-pi.vercel.app/**
 
 ## 🛠 Tech Stack
 - **Framework:** Next.js (App Router)
