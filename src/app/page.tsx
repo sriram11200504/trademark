@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { ref, onValue, push, set, serverTimestamp } from "firebase/database";
 import { db } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
-import { FileSpreadsheet, Plus, LogIn, Clock } from "lucide-react";
+import { FileSpreadsheet, Plus, LogIn, Clock, LogOut, Check, X, Trash2, Edit2 } from "lucide-react";
 
 type DocumentMeta = {
   id: string;
@@ -14,9 +14,11 @@ type DocumentMeta = {
 };
 
 export default function Dashboard() {
-  const { user, signIn, loading } = useAuth();
+  const { user, signIn, signOut, loading } = useAuth();
   const [documents, setDocuments] = useState<DocumentMeta[]>([]);
   const [fetching, setFetching] = useState(true);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [newName, setNewName] = useState("");
   const router = useRouter();
 
   useEffect(() => {
@@ -58,6 +60,27 @@ export default function Dashboard() {
       });
       router.push(`/doc/${newDocRef.key}`);
     }
+  };
+
+  const handleDelete = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (confirm("Are you sure you want to delete this spreadsheet?")) {
+      await set(ref(db, `documents/${id}`), null);
+    }
+  };
+
+  const startRename = (e: React.MouseEvent, id: string, currentTitle: string) => {
+    e.stopPropagation();
+    setRenamingId(id);
+    setNewName(currentTitle);
+  };
+
+  const submitRename = async (e: React.MouseEvent | React.KeyboardEvent, id: string) => {
+    e.stopPropagation();
+    if (newName.trim()) {
+      await set(ref(db, `documents/${id}/meta/title`), newName.trim());
+    }
+    setRenamingId(null);
   };
 
   if (loading || fetching) {
@@ -106,6 +129,14 @@ export default function Dashboard() {
               Signed in as <span className="text-white font-medium">{user.displayName}</span>
             </div>
             <img src={user.photoURL || ""} alt="" className="w-8 h-8 rounded-full bg-zinc-800" />
+            <div className="w-px h-6 bg-zinc-800 mx-2"></div>
+            <button
+              onClick={signOut}
+              className="flex items-center gap-2 text-zinc-400 hover:text-white transition text-sm font-medium"
+              title="Sign Out"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
           </div>
         </div>
 
@@ -139,15 +170,64 @@ export default function Dashboard() {
             {documents.map((doc) => (
               <div
                 key={doc.id}
-                onClick={() => router.push(`/doc/${doc.id}`)}
-                className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 cursor-pointer hover:border-emerald-500/50 hover:bg-zinc-800/80 transition group"
+                onClick={() => {
+                  if (renamingId !== doc.id) router.push(`/doc/${doc.id}`);
+                }}
+                className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 cursor-pointer hover:border-emerald-500/50 hover:bg-zinc-800/80 transition group relative"
               >
                 <div className="flex items-start justify-between mb-4">
                   <div className="bg-zinc-800 group-hover:bg-emerald-500/10 p-2 rounded-lg transition">
                     <FileSpreadsheet className="text-zinc-400 group-hover:text-emerald-500 w-5 h-5 transition" />
                   </div>
+                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition">
+                    <button
+                      onClick={(e) => startRename(e, doc.id, doc.title)}
+                      className="p-1.5 text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded transition"
+                      title="Rename"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={(e) => handleDelete(e, doc.id)}
+                      className="p-1.5 text-zinc-400 hover:text-red-400 bg-zinc-800 hover:bg-red-500/10 rounded transition"
+                      title="Delete"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
-                <h3 className="text-white font-medium mb-1 truncate">{doc.title}</h3>
+
+                {renamingId === doc.id ? (
+                  <div className="flex items-center gap-2 mb-1">
+                    <input
+                      autoFocus
+                      type="text"
+                      className="w-full bg-zinc-800 text-white text-sm px-2 py-1 rounded outline-none border border-emerald-500/50"
+                      value={newName}
+                      onChange={(e) => setNewName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') submitRename(e, doc.id);
+                        if (e.key === 'Escape') setRenamingId(null);
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                    <button
+                      onClick={(e) => submitRename(e, doc.id)}
+                      className="p-1 text-emerald-500 hover:bg-emerald-500/10 rounded"
+                    >
+                      <Check className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setRenamingId(null); }}
+                      className="p-1 text-zinc-400 hover:bg-zinc-800 rounded"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <h3 className="text-white font-medium mb-1 truncate pr-8">{doc.title}</h3>
+                )}
+
                 <div className="flex items-center gap-1.5 text-zinc-500 text-xs">
                   <Clock className="w-3 h-3" />
                   {doc.lastModified ? new Date(doc.lastModified).toLocaleDateString() : "Unknown"}
